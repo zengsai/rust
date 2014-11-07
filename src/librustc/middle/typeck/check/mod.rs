@@ -2265,6 +2265,10 @@ fn autoderef_for_index<T>(fcx: &FnCtxt,
                           step: |ty::t, ty::AutoDerefRef| -> Option<T>)
                           -> Option<T>
 {
+    // FIXME(#18741) -- this is almost but not quite the same as the
+    // autoderef that normal method probing does. They could likely be
+    // consolidated.
+
     let (ty, autoderefs, final_mt) =
         autoderef(fcx, base_expr.span, base_ty, Some(base_expr.id), lvalue_pref, |adj_ty, idx| {
             let autoderefref = ty::AutoDerefRef { autoderefs: idx, autoref: None };

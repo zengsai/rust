@@ -131,6 +131,21 @@ pub fn lookup_in_trait_adjusted<'a, 'tcx>(fcx: &'a FnCtxt<'a, 'tcx>,
                                           opt_input_types: Option<Vec<ty::t>>)
                                           -> Option<MethodCallee>
 {
+    /*!
+     * `lookup_in_trait_adjusted` is used for overloaded operators. It
+     * does a very narrow slice of what the normal probe/confirm path
+     * does. In particular, it doesn't really do any probing: it
+     * simply constructs an obligation for a particular trait with the
+     * given self-type and checks whether that trait is implemented.
+     *
+     * FIXME(#18741) -- It seems likely that we can consolidate some of this
+     * code with the other method-lookup code. In particular,
+     * autoderef on index is basically identical to autoderef with
+     * normal probes, except that the test also looks for built-in
+     * indexing. Also, the second half of this method is basically
+     * the same as confirmation.
+     */
+
     debug!("lookup_in_trait_adjusted(self_ty={}, self_expr={}, m_name={}, trait_def_id={})",
            self_ty.repr(fcx.tcx()),
            self_expr.repr(fcx.tcx()),

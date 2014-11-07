@@ -114,7 +114,7 @@ pub fn probe(fcx: &FnCtxt,
            method_name,
            call_expr_id);
 
-    // FIXME -- right now, creating the steps involves evaluating the
+    // FIXME(#18741) -- right now, creating the steps involves evaluating the
     // `*` operator, which registers obligations that then escape into
     // the global fulfillment context and thus has global
     // side-effects. This is a bit of a pain to refactor. So just let
