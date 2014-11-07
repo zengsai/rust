@@ -36,7 +36,7 @@ use syntax::ast;
 use syntax::codemap;
 use syntax::codemap::Span;
 use util::common::indent;
-use util::ppaux::{bound_region_to_string, ty_to_string};
+use util::ppaux::{ty_to_string};
 use util::ppaux::{trait_ref_to_string, Repr};
 
 use self::coercion::Coerce;
@@ -222,6 +222,16 @@ pub enum SubregionOrigin {
     AutoBorrow(Span),
 }
 
+/// Times when we replace late-bound regions with variables:
+#[deriving(Clone, Show)]
+pub enum LateBoundRegionConversionTime {
+    /// when a fn is called
+    FnCall,
+
+    /// when two fn types are compared
+    FnType,
+}
+
 /// Reasons to create a region inference variable
 ///
 /// See `error_reporting.rs` for more details
@@ -251,11 +261,7 @@ pub enum RegionVariableOrigin {
 
     // Region variables created for bound regions
     // in a function or method that is called
-    LateBoundRegion(Span, ty::BoundRegion),
-
-    // Region variables created for bound regions
-    // when doing subtyping/lub/glb computations
-    BoundRegionInFnType(Span, ty::BoundRegion),
+    LateBoundRegion(Span, ty::BoundRegion, LateBoundRegionConversionTime),
 
     UpvarRegion(ty::UpvarId, Span),
 
@@ -959,36 +965,20 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
     }
 
     pub fn replace_late_bound_regions_with_fresh_var<T>(&self,
-                                                    binder_id: ast::NodeId,
-                                                    span: Span,
-                                                    value: &T)
-                                                    -> T
-        where T : TypeFoldable + Repr
+                                                        binder_id: ast::NodeId,
+                                                        span: Span,
+                                                        lbrct: LateBoundRegionConversionTime,
+                                                        value: &T)
+                                                        -> (T, HashMap<ty::BoundRegion,ty::Region>)
+                                                        where T : TypeFoldable + Repr
     {
-        let (_, value) = replace_late_bound_regions(
-            self.tcx,
-            binder_id,
-            value,
-            |br| self.next_region_var(LateBoundRegion(span, br)));
-        value
-    }
-
-    pub fn replace_late_bound_regions_with_fresh_regions(&self,
-                                                         trace: TypeTrace,
-                                                         fsig: &ty::FnSig)
-                                                    -> (ty::FnSig,
-                                                        HashMap<ty::BoundRegion,
-                                                                ty::Region>) {
-        let (map, fn_sig) =
-            replace_late_bound_regions(self.tcx, fsig.binder_id, fsig, |br| {
-                let rvar = self.next_region_var(
-                    BoundRegionInFnType(trace.origin.span(), br));
-                debug!("Bound region {} maps to {}",
-                       bound_region_to_string(self.tcx, "", false, br),
-                       rvar);
-                rvar
-            });
-        (fn_sig, map)
+        let (map, value) =
+            replace_late_bound_regions(
+                self.tcx,
+                binder_id,
+                value,
+                |br| self.next_region_var(LateBoundRegion(span, br, lbrct)));
+        (value, map)
     }
 }
 
@@ -1170,8 +1160,7 @@ impl RegionVariableOrigin {
             Autoref(a) => a,
             Coercion(ref a) => a.span(),
             EarlyBoundRegion(a, _) => a,
-            LateBoundRegion(a, _) => a,
-            BoundRegionInFnType(a, _) => a,
+            LateBoundRegion(a, _, _) => a,
             BoundRegionInCoherence(_) => codemap::DUMMY_SP,
             UpvarRegion(_, a) => a
         }
@@ -1196,12 +1185,8 @@ impl Repr for RegionVariableOrigin {
             EarlyBoundRegion(a, b) => {
                 format!("EarlyBoundRegion({},{})", a.repr(tcx), b.repr(tcx))
             }
-            LateBoundRegion(a, b) => {
-                format!("LateBoundRegion({},{})", a.repr(tcx), b.repr(tcx))
-            }
-            BoundRegionInFnType(a, b) => {
-                format!("bound_regionInFnType({},{})", a.repr(tcx),
-                b.repr(tcx))
+            LateBoundRegion(a, b, c) => {
+                format!("LateBoundRegion({},{},{})", a.repr(tcx), b.repr(tcx), c)
             }
             BoundRegionInCoherence(a) => {
                 format!("bound_regionInCoherence({})", a.repr(tcx))

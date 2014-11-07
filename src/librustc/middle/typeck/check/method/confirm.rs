@@ -359,7 +359,8 @@ impl<'a,'tcx> ConfirmContext<'a,'tcx> {
         let fn_sig = bare_fn_ty.sig.subst(self.tcx(), all_substs);
         self.infcx().replace_late_bound_regions_with_fresh_var(fn_sig.binder_id,
                                                                self.span,
-                                                               &fn_sig)
+                                                               infer::FnCall,
+                                                               &fn_sig).0
     }
 
     fn add_obligations(&mut self,

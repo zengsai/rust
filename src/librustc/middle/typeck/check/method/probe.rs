@@ -845,7 +845,8 @@ impl<'a,'tcx> ProbeContext<'a,'tcx> {
         let xform_self_ty = method.fty.sig.inputs[0].subst(self.tcx(), substs);
         self.infcx().replace_late_bound_regions_with_fresh_var(method.fty.sig.binder_id,
                                                                self.span,
-                                                               &xform_self_ty)
+                                                               infer::FnCall,
+                                                               &xform_self_ty).0
     }
 }
 

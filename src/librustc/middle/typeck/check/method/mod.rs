@@ -18,10 +18,11 @@ use middle::ty;
 use middle::typeck::astconv::AstConv;
 use middle::typeck::check::{FnCtxt};
 use middle::typeck::check::{impl_self_ty};
+use middle::typeck::check::vtable;
 use middle::typeck::check::vtable::select_new_fcx_obligations;
+use middle::typeck::infer;
 use middle::typeck::{MethodCallee};
 use middle::typeck::{MethodParam, MethodTypeParam};
-use middle::typeck::check::vtable;
 use util::ppaux::{Repr, UserString};
 
 use std::rc::Rc;
@@ -194,7 +195,8 @@ pub fn lookup_in_trait_adjusted<'a, 'tcx>(
     let fn_sig = bare_fn_ty.sig.subst(tcx, &trait_ref.substs);
     let fn_sig = fcx.infcx().replace_late_bound_regions_with_fresh_var(fn_sig.binder_id,
                                                                        span,
-                                                                       &fn_sig);
+                                                                       infer::FnCall,
+                                                                       &fn_sig).0;
     let transformed_self_ty = fn_sig.inputs[0];
     let fty = ty::mk_bare_fn(tcx, ty::BareFnTy {
         sig: fn_sig,

@@ -3054,9 +3054,12 @@ fn check_expr_with_unifier(fcx: &FnCtxt,
 
         // Replace any bound regions that appear in the function
         // signature with region variables
-        let (_, fn_sig) = replace_late_bound_regions(fcx.tcx(), fn_sig.binder_id, fn_sig, |br| {
-            fcx.infcx().next_region_var(infer::LateBoundRegion(call_expr.span, br))
-        });
+        let fn_sig =
+            fcx.infcx().replace_late_bound_regions_with_fresh_var(
+                fn_sig.binder_id,
+                call_expr.span,
+                infer::FnCall,
+                fn_sig).0;
 
         // Call the generic checker.
         check_argument_types(fcx,
@@ -3605,8 +3608,7 @@ fn check_expr_with_unifier(fcx: &FnCtxt,
                    expr: &ast::Expr,
                    lvalue_pref: LvaluePreference,
                    base: &ast::Expr,
-                   field: &ast::SpannedIdent,
-                   _tys: &[P<ast::Ty>]) {
+                   field: &ast::SpannedIdent) {
         let tcx = fcx.ccx.tcx;
         check_expr_with_lvalue_pref(fcx, base, lvalue_pref);
         let expr_t = structurally_resolved_type(fcx, expr.span,
@@ -3666,8 +3668,7 @@ fn check_expr_with_unifier(fcx: &FnCtxt,
                        expr: &ast::Expr,
                        lvalue_pref: LvaluePreference,
                        base: &ast::Expr,
-                       idx: codemap::Spanned<uint>,
-                       _tys: &[P<ast::Ty>]) {
+                       idx: codemap::Spanned<uint>) {
         let tcx = fcx.ccx.tcx;
         check_expr_with_lvalue_pref(fcx, base, lvalue_pref);
         let expr_t = structurally_resolved_type(fcx, expr.span,
@@ -4489,11 +4490,11 @@ fn check_expr_with_unifier(fcx: &FnCtxt,
 
         fcx.require_expr_have_sized_type(expr, traits::StructInitializerSized);
       }
-      ast::ExprField(ref base, ref field, ref tys) => {
-        check_field(fcx, expr, lvalue_pref, &**base, field, tys.as_slice());
+      ast::ExprField(ref base, ref field, _) => {
+        check_field(fcx, expr, lvalue_pref, &**base, field);
       }
-      ast::ExprTupField(ref base, idx, ref tys) => {
-        check_tup_field(fcx, expr, lvalue_pref, &**base, idx, tys.as_slice());
+      ast::ExprTupField(ref base, idx, _) => {
+        check_tup_field(fcx, expr, lvalue_pref, &**base, idx);
       }
       ast::ExprIndex(ref base, ref idx) => {
           check_expr_with_lvalue_pref(fcx, &**base, lvalue_pref);
