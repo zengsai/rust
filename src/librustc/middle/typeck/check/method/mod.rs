@@ -53,18 +53,12 @@ pub enum CandidateSource {
 
 type MethodIndex = uint; // just for doc purposes
 
-//struct CacheKey {
-//    skol_self_ty: ty::t,
-//    method_name: ast::Name,
-//}
-
-pub fn exists(
-    fcx: &FnCtxt,
-    span: Span,
-    method_name: ast::Name,
-    self_ty: ty::t,
-    call_expr_id: ast::NodeId)
-    -> bool
+pub fn exists(fcx: &FnCtxt,
+              span: Span,
+              method_name: ast::Name,
+              self_ty: ty::t,
+              call_expr_id: ast::NodeId)
+              -> bool
 {
     /*!
      * Determines whether the type `self_ty` supports a method name `method_name` or not.
@@ -77,15 +71,14 @@ pub fn exists(
     }
 }
 
-pub fn lookup(
-    fcx: &FnCtxt,
-    span: Span,
-    method_name: ast::Name,
-    self_ty: ty::t,
-    supplied_method_types: Vec<ty::t>,
-    call_expr_id: ast::NodeId,
-    self_expr: &ast::Expr)
-    -> Result<MethodCallee, MethodError>
+pub fn lookup(fcx: &FnCtxt,
+              span: Span,
+              method_name: ast::Name,
+              self_ty: ty::t,
+              supplied_method_types: Vec<ty::t>,
+              call_expr_id: ast::NodeId,
+              self_expr: &ast::Expr)
+              -> Result<MethodCallee, MethodError>
 {
     /*!
      * Performs method lookup. If lookup is successful, it will return the callee
@@ -114,31 +107,29 @@ pub fn lookup(
     Ok(confirm::confirm(fcx, span, self_expr, self_ty, pick, supplied_method_types))
 }
 
-pub fn lookup_in_trait<'a, 'tcx>(
-    fcx: &'a FnCtxt<'a, 'tcx>,
-    span: Span,
-    self_expr: Option<&'a ast::Expr>,
-    m_name: ast::Name,
-    trait_def_id: DefId,
-    self_ty: ty::t,
-    opt_input_types: Option<Vec<ty::t>>)
-    -> Option<MethodCallee>
+pub fn lookup_in_trait<'a, 'tcx>(fcx: &'a FnCtxt<'a, 'tcx>,
+                                 span: Span,
+                                 self_expr: Option<&'a ast::Expr>,
+                                 m_name: ast::Name,
+                                 trait_def_id: DefId,
+                                 self_ty: ty::t,
+                                 opt_input_types: Option<Vec<ty::t>>)
+                                 -> Option<MethodCallee>
 {
     lookup_in_trait_adjusted(fcx, span, self_expr, m_name, trait_def_id,
                              ty::AutoDerefRef { autoderefs: 0, autoref: None },
                              self_ty, opt_input_types)
 }
 
-pub fn lookup_in_trait_adjusted<'a, 'tcx>(
-    fcx: &'a FnCtxt<'a, 'tcx>,
-    span: Span,
-    self_expr: Option<&'a ast::Expr>,
-    m_name: ast::Name,
-    trait_def_id: DefId,
-    autoderefref: ty::AutoDerefRef,
-    self_ty: ty::t,
-    opt_input_types: Option<Vec<ty::t>>)
-    -> Option<MethodCallee>
+pub fn lookup_in_trait_adjusted<'a, 'tcx>(fcx: &'a FnCtxt<'a, 'tcx>,
+                                          span: Span,
+                                          self_expr: Option<&'a ast::Expr>,
+                                          m_name: ast::Name,
+                                          trait_def_id: DefId,
+                                          autoderefref: ty::AutoDerefRef,
+                                          self_ty: ty::t,
+                                          opt_input_types: Option<Vec<ty::t>>)
+                                          -> Option<MethodCallee>
 {
     debug!("lookup_in_trait_adjusted(self_ty={}, self_expr={}, m_name={}, trait_def_id={})",
            self_ty.repr(fcx.tcx()),

@@ -110,7 +110,7 @@ might have two candidates:
 
 Finally, to actually pick the method, we will search down the steps,
 trying to match the receiver type against the candidate types. At
-step, we also consider an auto-ref and auto-mut-ref to see whether
+each step, we also consider an auto-ref and auto-mut-ref to see whether
 that makes any of the candidates match. We pick the first step where
 we find a match.
 

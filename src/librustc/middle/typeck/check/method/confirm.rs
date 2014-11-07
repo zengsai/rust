@@ -64,13 +64,13 @@ impl<'a,'tcx> ConfirmContext<'a,'tcx> {
                supplied_method_types: Vec<ty::t>)
                -> MethodCallee
     {
-        //
+        // Adjust the self expression the user provided and obtain the adjusted type.
         let self_ty = self.adjust_self_ty(unadjusted_self_ty, &pick.adjustment);
 
-        //
+        // Make sure nobody calls `drop()` explicitly.
         self.enforce_drop_trait_limitations(&pick);
 
-        //
+        // Create substitutions for the method's type parameters.
         let (rcvr_substs, method_origin) =
             self.fresh_receiver_substs(self_ty, &pick);
         let (method_types, method_regions) =
@@ -78,29 +78,31 @@ impl<'a,'tcx> ConfirmContext<'a,'tcx> {
         let all_substs = rcvr_substs.with_method(method_types, method_regions);
         debug!("all_substs={}", all_substs.repr(self.tcx()));
 
-        //
+        // Create the final signature for the method, replacing late-bound regions.
         let method_sig = self.instantiate_method_sig(&pick, &all_substs);
         let method_self_ty = method_sig.inputs[0];
 
-        //
+        // Unify the (adjusted) self type with what the method expects.
         self.unify_receivers(self_ty, method_self_ty);
 
-        //
+        // Add any trait/regions obligations specified on the method's type parameters.
         self.add_obligations(&pick, &all_substs);
 
-        //
+        // Create the final `MethodCallee`.
         let fty = ty::mk_bare_fn(self.tcx(), ty::BareFnTy {
             sig: method_sig,
             fn_style: pick.method_ty.fty.fn_style,
             abi: pick.method_ty.fty.abi.clone(),
         });
-
         let callee = MethodCallee {
             origin: method_origin,
             ty: fty,
             substs: all_substs
         };
 
+        // If this is an `&mut self` method, bias the receiver
+        // expression towards mutability (this will switch
+        // e.g. `Deref` to `DerefMut` in oveloaded derefs and so on).
         self.fixup_derefs_on_method_receiver_if_necessary(&callee);
 
         callee
@@ -147,17 +149,16 @@ impl<'a,'tcx> ConfirmContext<'a,'tcx> {
                     autoref: None
                 }
             }
+            probe::AutoUnsizeLength(autoderefs, len) => {
+                ty::AutoDerefRef {
+                    autoderefs: autoderefs,
+                    autoref: Some(ty::AutoUnsize(ty::UnsizeLength(len)))
+                }
+            }
             probe::AutoRef(mutability, ref sub_adjustment) => {
                 let deref = self.create_ty_adjustment(&**sub_adjustment);
                 let region = self.infcx().next_region_var(infer::Autoref(self.span));
                 wrap_autoref(deref, |base| ty::AutoPtr(region, mutability, base))
-            }
-            probe::AutoUnsizeLength(n, ref sub_adjustment) => {
-                let deref = self.create_ty_adjustment(&**sub_adjustment);
-                wrap_autoref(deref, |wrap| {
-                    assert!(wrap.is_none());
-                    ty::AutoUnsize(ty::UnsizeLength(n))
-                })
             }
         }
     }

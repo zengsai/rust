@@ -84,18 +84,30 @@ pub type PickResult = Result<Pick, MethodError>;
 // needed.
 #[deriving(Clone,Show)]
 pub enum PickAdjustment {
-    AutoDeref(/* number of autoderefs */ uint),     // A = expr, *expr, **expr
-    AutoRef(ast::Mutability, Box<PickAdjustment>),  // A = &A | &mut A
-    AutoUnsizeLength(uint, Box<PickAdjustment>),    // [T, ..n] => [T]
+    // Indicates that the source expression should be autoderef'd N times
+    //
+    // A = expr | *expr | **expr
+    AutoDeref(uint),
+
+    // Indicates that the source expression should be autoderef'd N
+    // times and then "unsized". This should probably eventually go
+    // away in favor of just coercing method receivers.
+    //
+    // A = unsize(expr | *expr | **expr)
+    AutoUnsizeLength(/* number of autoderefs */ uint, /* length*/ uint),
+
+    // Indicates that an autoref is applied after some number of other adjustments
+    //
+    // A = &A | &mut A
+    AutoRef(ast::Mutability, Box<PickAdjustment>),
 }
 
-pub fn probe(
-    fcx: &FnCtxt,
-    span: Span,
-    method_name: ast::Name,
-    self_ty: ty::t,
-    call_expr_id: ast::NodeId)
-    -> PickResult
+pub fn probe(fcx: &FnCtxt,
+             span: Span,
+             method_name: ast::Name,
+             self_ty: ty::t,
+             call_expr_id: ast::NodeId)
+             -> PickResult
 {
     debug!("probe(self_ty={}, method_name={}, call_expr_id={})",
            self_ty.repr(fcx.tcx()),
@@ -143,7 +155,7 @@ fn create_steps(fcx: &FnCtxt, span: Span, self_ty: ty::t) -> Vec<CandidateStep> 
         ty::ty_vec(elem_ty, Some(len)) => {
             steps.push(CandidateStep {
                 self_ty: ty::mk_vec(fcx.tcx(), elem_ty, None),
-                adjustment: AutoUnsizeLength(len, box AutoDeref(dereferences))
+                adjustment: AutoUnsizeLength(dereferences, len),
             });
         }
         _ => {
@@ -609,8 +621,8 @@ impl<'a,'tcx> ProbeContext<'a,'tcx> {
     }
 
     fn pick_autorefrefd_method(&mut self,
-                            step: &CandidateStep)
-                            -> Option<PickResult>
+                               step: &CandidateStep)
+                               -> Option<PickResult>
     {
         let tcx = self.tcx();
         self.search_mutabilities(
